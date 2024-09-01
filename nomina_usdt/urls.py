@@ -41,8 +41,10 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('docs/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),# probar api
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'), #documentacion api
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'), #autenticacion con restframework
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'), #autenticacion con restframework
+    path('', include('login.urls')), #loging con jwt 
+    #path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'), #autenticacion con restframework
+    #path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'), #autenticacion con restframework
+  
     
 ] 
 
