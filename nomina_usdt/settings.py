@@ -83,10 +83,10 @@ DATABASES = {
   'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'nomina_usdt_cop',
-        'USER': 'administrador1',
+        'USER': 'nominadministrador',
         'PASSWORD': 'NominasAldia321',
         'HOST': 'localhost',
-        'PORT': '5432',
+        'PORT': '5434',
     }
 }
 

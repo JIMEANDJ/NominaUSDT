@@ -1,5 +1,7 @@
+# login/serializers.py
+
 from rest_framework import serializers
-from personas.models import Empresa, Empleado
+from personas.models import Empresa, Empleado  # Ajusta la ruta de importación
 
 class EmpresaSerializer(serializers.ModelSerializer):
     class Meta:
