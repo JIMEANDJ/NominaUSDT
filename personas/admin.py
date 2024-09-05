@@ -11,6 +11,6 @@ admin.site.register(Usuario, UserAdmin)
 # Registrar el modelo Empresa
 admin.site.register(Empresa)
 
-# Registrar otros modelos si es necesario
+#Registrar otros modelos si es necesario
 admin.site.register(Empleado)
 admin.site.register(EmpleadoEmpresa)

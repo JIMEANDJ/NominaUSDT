@@ -42,7 +42,6 @@ INSTALLED_APPS = [
     'drf_yasg', # usado para probar api
     'personas', # app creada para el proyecto
     'login', # app creada para jwt login
-    
 ]
 
 MIDDLEWARE = [
@@ -76,6 +75,8 @@ TEMPLATES = [
 WSGI_APPLICATION = 'nomina_usdt.wsgi.application'
 
 
+# Custom user model
+AUTH_USER_MODEL = 'personas.Usuario'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
@@ -134,6 +135,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Añade aquí la configuración de REST_FRAMEWORK
 REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
