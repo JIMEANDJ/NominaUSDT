@@ -2,6 +2,35 @@
 
 from rest_framework import serializers
 from personas.models import Empresa, Empleado  # Ajusta la ruta de importación
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
+from rest_framework import serializers
+from django.contrib.auth import get_user_model
+
+class UsuarioSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = get_user_model()
+        fields = ['username', 'password', 'email', 'first_name', 'last_name']
+
+    def create(self, validated_data):
+        user = get_user_model().objects.create_user(**validated_data)
+        return user
+
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        # Añadir datos adicionales
+        token['nombre'] = user.first_name
+        token['apellido'] = user.last_name
+        token['correo'] = user.email
+        return token
+
+
+
+
 
 class EmpresaSerializer(serializers.ModelSerializer):
     class Meta:
