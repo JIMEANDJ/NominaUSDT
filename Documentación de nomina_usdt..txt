@@ -1,0 +1,42 @@
+Documentación de nomina_usdt.
+
+Para estructurar el proceso de registro de usuarios y su posterior registro como empleados (o empresas), vamos a desglosar los pasos para documentarlo claramente. A continuación, también adaptaremos lo necesario para el registro de empresas siguiendo la misma estructura.
+
+Paso a Paso del Registro de Usuarios y Empleados
+Registro de Usuario (Correo y Contraseña):
+
+Este paso inicial se encargará de registrar al usuario base con su correo y contraseña.
+Se utiliza el endpoint /api/registro/ para este registro, donde se espera que el usuario envíe los datos básicos para crear tanto el Usuario como el Empleado asociado.
+Modelo involucrado: Usuario y Empleado.
+Serializer utilizado: RegistroEmpleadoSerializer.
+Lógica en el Serializer: Se extraen los datos del usuario, se crea un Usuario, y luego se procede a crear el Empleado vinculado a ese usuario.
+Autenticación JWT:
+
+Una vez registrado el usuario, este puede autenticarse utilizando el endpoint /api/token/ para obtener el JWT (JSON Web Token).
+Este token será utilizado en todas las solicitudes posteriores que requieran autenticación.
+Lógica en el View: Se utiliza MyTokenObtainPairView, que personaliza el JWT añadiendo campos adicionales como nombre, apellido y correo del usuario autenticado.
+Registro de Empresa:
+
+El registro de una empresa se realiza una vez que el usuario está autenticado.
+Se utiliza el endpoint /api/empresa/ para crear la empresa.
+Modelo involucrado: Empresa.
+Serializer utilizado: EmpresaSerializer.
+Lógica en el View: Solo usuarios autenticados pueden crear una empresa. Se revisa la autenticación y luego se guarda la empresa.
+Paso a Paso del Registro de Empresa
+Autenticación JWT:
+
+El proceso de autenticación es el mismo descrito anteriormente.
+Se obtiene el JWT para poder realizar solicitudes autenticadas.
+Registro de Empresa (Usuario Autenticado):
+
+Una vez autenticado, el usuario puede crear una empresa utilizando el endpoint /api/empresa/.
+Modelo involucrado: Empresa.
+Serializer utilizado: EmpresaSerializer.
+Lógica en el View: Requiere autenticación para asegurarse de que solo usuarios registrados puedan crear empresas.
+Estructura de Archivos
+models.py
+Contiene los modelos de Usuario, Empleado, Empresa, y otros relacionados.
+views.py
+Define las vistas necesarias para manejar el registro de usuarios, autenticación, y registro de empleados y empresas.
+serializers.py
+Serializadores para manejar la creación y validación de datos enviados al backend.
