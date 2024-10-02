@@ -1,66 +1,74 @@
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from rest_framework.permissions import IsAuthenticated
+from rest_framework import generics, status
 from rest_framework.response import Response
-from rest_framework import status
 from rest_framework.views import APIView
-from personas.models import Empresa, Empleado
-from .serializers import EmpresaSerializer, RegistroEmpleadoSerializer
-from .permissions import AllowPartialAccess
-from drf_yasg.utils import swagger_auto_schema
-
-
-from rest_framework import generics
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.contrib.auth import get_user_model
-from .serializers import UsuarioSerializer
+from personas.models import Empleado, CuentaBancaria, Empresa
+from .serializers import (
+    UsuarioSerializer,
+    MyTokenObtainPairSerializer,
+    RegistroEmpleadoSerializer,
+    CuentaBancariaSerializer,
+    EmpresaSerializer
+)
 
+# Vista para la creación del Usuario
 class UsuarioCreateAPIView(generics.CreateAPIView):
     queryset = get_user_model().objects.all()
     serializer_class = UsuarioSerializer
 
-    @swagger_auto_schema(request_body=UsuarioSerializer)
     def post(self, request, *args, **kwargs):
-        return super().post(request, *args, **kwargs)
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Usuario creado exitosamente"}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
-    @classmethod
-    def get_token(cls, user):
-        token = super().get_token(user)
-        # Añadir datos adicionales
-        token['nombre'] = user.first_name
-        token['apellido'] = user.last_name
-        token['correo'] = user.email
-        return token
-
+# Vista para obtener el Token JWT
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
 
-    @swagger_auto_schema(request_body=MyTokenObtainPairSerializer)
     def post(self, request, *args, **kwargs):
         return super().post(request, *args, **kwargs)
 
 class MyTokenRefreshView(TokenRefreshView):
     pass
 
-class EmpresaCreateAPIView(APIView):
-    permission_classes = [AllowPartialAccess]  # Usamos el permiso personalizado
+# Vista para registrar un empleado (debe estar autenticado con JWT)
+class RegistroEmpleadoAPIView(APIView):
+    permission_classes = [IsAuthenticated]  # Requiere que el usuario esté autenticado
 
-    @swagger_auto_schema(request_body=EmpresaSerializer)
     def post(self, request, *args, **kwargs):
-        serializer = EmpresaSerializer(data=request.data)
+        # El usuario ya debe estar autenticado y registrado (token JWT)
+        serializer = RegistroEmpleadoSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response({"message": "Empleado registrado exitosamente"}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class RegistroEmpleadoAPIView(APIView):
-    permission_classes = [AllowPartialAccess]  # Usamos el permiso personalizado
+# Vista para agregar información de cuenta bancaria (opcional, al efectuar un pago)
+class CuentaBancariaCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated]  # El usuario debe estar autenticado
 
-    @swagger_auto_schema(request_body=RegistroEmpleadoSerializer)
-    def post(self, request):
-        serializer = RegistroEmpleadoSerializer(data=request.data)
+    def post(self, request, *args, **kwargs):
+        # Se asume que el usuario ya es un empleado registrado
+        empleado = request.user.empleado  # Se obtiene el empleado asociado al usuario autenticado
+        serializer = CuentaBancariaSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            serializer.save(empleado=empleado)
+            return Response({"message": "Cuenta bancaria registrada exitosamente"}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# Vista para la creación de Empresa
+class EmpresaCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated]  # El usuario debe estar autenticado
+
+    def post(self, request, *args, **kwargs):
+        # El usuario debe estar autenticado para crear una empresa
+        serializer = EmpresaSerializer(data=request.data)
+        if serializer.is_valid():
+            empresa = serializer.save()
+            empresa.usuarios.add(request.user)  # Añadir al usuario autenticado como miembro de la empresa
+            return Response({"message": "Empresa registrada exitosamente"}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -1,10 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 
-# Modelo personalizado de usuario para permitir el login tanto de empleados como de empresas
 class Usuario(AbstractUser):
     es_empresa = models.BooleanField(default=False)
-    # Se añaden related_name únicos para evitar conflictos de acceso inverso
     groups = models.ManyToManyField(
         'auth.Group',
         verbose_name='groups',
@@ -34,17 +32,31 @@ class Empresa(models.Model):
 
 class Empleado(models.Model):
     usuario = models.OneToOneField(Usuario, on_delete=models.CASCADE, related_name='empleado')
-    nombre = models.CharField(max_length=255)
-    apellido = models.CharField(max_length=255)
-    tipo_documento = models.CharField(max_length=50)
+    TIPO_DOCUMENTO_CHOICES = [
+        ('CC', 'Cédula de Ciudadanía'),
+        ('CE', 'Cédula de Extranjería'),
+        ('PASSPORT', 'Pasaporte'),
+        ('PPT', 'Permiso por Protección Temporal'),
+    ]
+    tipo_documento = models.CharField(max_length=50, choices=TIPO_DOCUMENTO_CHOICES)
     documento_identidad = models.CharField(max_length=100, unique=True)
     numero_telefono = models.CharField(max_length=20)
-    correo = models.EmailField(unique=True)
-    es_contribuyente = models.BooleanField(default=False)
-    empresas = models.ManyToManyField(Empresa, through='EmpleadoEmpresa', related_name='empleados')
 
     def __str__(self):
-        return f"{self.nombre} {self.apellido}"
+        return f"{self.usuario.first_name} {self.usuario.last_name}"
+
+class CuentaBancaria(models.Model):
+    empleado = models.ForeignKey(Empleado, on_delete=models.CASCADE, related_name='cuentas_bancarias')
+    banco = models.CharField(max_length=100)
+    TIPO_CUENTA_CHOICES = [
+        ('corriente', 'Corriente'),
+        ('ahorros', 'Ahorros'),
+    ]
+    tipo_cuenta = models.CharField(max_length=10, choices=TIPO_CUENTA_CHOICES)
+    numero_cuenta = models.CharField(max_length=50)
+
+    def __str__(self):
+        return f"{self.banco} - {self.tipo_cuenta} - {self.numero_cuenta}"
 
 class EmpleadoEmpresa(models.Model):
     empleado = models.ForeignKey(Empleado, on_delete=models.CASCADE, related_name='empleado_empresa')
@@ -72,7 +84,7 @@ class OrdenDePago(models.Model):
     fecha = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Orden de {self.empresa} a {self.empleado} - {self.cantidad_usdt} USDT"
+        return f"Orden de pago para {self.empleado} de {self.cantidad_usdt} USDT"
 
 class ComprobanteDePago(models.Model):
     orden_de_pago = models.OneToOneField(OrdenDePago, on_delete=models.CASCADE)
