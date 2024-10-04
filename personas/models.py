@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.contrib.auth import get_user_model 
 
 class Usuario(AbstractUser):
     es_empresa = models.BooleanField(default=False)
@@ -23,9 +24,13 @@ class Usuario(AbstractUser):
     def __str__(self):
         return self.username
 
+
 class Empresa(models.Model):
-    nombre = models.CharField(max_length=255)
+    nombre = models.CharField(max_length=255, default='')
+    direccion = models.CharField(max_length=255, default='')
+    telefono = models.CharField(max_length=20, default='')
     usuarios = models.ManyToManyField(Usuario, through='EmpleadoEmpresa', related_name='empresas')
+    creador = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='empresas_creadas', null=True, blank=True)
 
     def __str__(self):
         return self.nombre

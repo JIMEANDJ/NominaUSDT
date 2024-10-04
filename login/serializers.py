@@ -24,44 +24,36 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['correo'] = user.email
         return token
 
+from rest_framework import serializers
+from personas.models import Empresa
+
 class EmpresaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Empresa
-        fields = '__all__'
+        fields = ['nombre', 'direccion', 'telefono']
 
 class CuentaBancariaSerializer(serializers.ModelSerializer):
     class Meta:
         model = CuentaBancaria
         fields = ['banco', 'tipo_cuenta', 'numero_cuenta']
 
-class RegistroEmpleadoSerializer(serializers.ModelSerializer):
-    # Campos adicionales para la creación de un Usuario
-    password = serializers.CharField(write_only=True)
-    email = serializers.EmailField()
-    nombre_y_apellido = serializers.CharField(source='usuario.first_name', write_only=True)
-    apellido = serializers.CharField(source='usuario.last_name', write_only=True)
+from rest_framework import serializers
+from django.contrib.auth import get_user_model
+from personas.models import Empleado
 
+from rest_framework import serializers
+from personas.models import Empleado
+
+class RegistroEmpleadoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Empleado
-        fields = ['password', 'email', 'nombre_y_apellido', 'apellido', 'tipo_documento', 'documento_identidad', 'numero_telefono'] 
+        fields = ['tipo_documento', 'documento_identidad', 'numero_telefono']
 
     def create(self, validated_data):
-        # Extraer datos del usuario
-        password = validated_data.pop('password')
-        email = validated_data.pop('email')
-        nombre_y_apellido = validated_data.pop('usuario')['first_name']
-        apellido = validated_data.pop('usuario')['last_name']
+        # Obtener el usuario autenticado del contexto de la solicitud
+        usuario = self.context['request'].user
 
-        # Crear el usuario
-        usuario = Usuario.objects.create_user(
-            username=nombre_y_apellido,  # Asigna un nombre de usuario basado en el nombre
-            password=password,
-            email=email,
-            first_name=nombre_y_apellido,
-            last_name=apellido
-        )
-
-        # Crear el empleado asociado
+        # Crear el empleado vinculado al usuario autenticado
         empleado = Empleado.objects.create(usuario=usuario, **validated_data)
 
         return empleado

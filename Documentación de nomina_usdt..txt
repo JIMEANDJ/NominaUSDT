@@ -1,4 +1,4 @@
-Documentación de nomina_usdt.
+gDocumentación de nomina_usdt.
 
 Para estructurar el proceso de registro de usuarios y su posterior registro como empleados (o empresas), vamos a desglosar los pasos para documentarlo claramente. A continuación, también adaptaremos lo necesario para el registro de empresas siguiendo la misma estructura.
 
