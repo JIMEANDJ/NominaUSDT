@@ -81,9 +81,9 @@ AUTH_USER_MODEL = 'personas.Usuario'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
 DATABASES = {
-  'default': {
+    'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'nomina_usdt_cop',
+        'NAME': 'nomina_usdt',
         'USER': 'nominadministrador',
         'PASSWORD': 'NominasAldia321',
         'HOST': 'localhost',
