@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from personas.models import Empresa, Empleado, Usuario, CuentaBancaria  # Ajusta la ruta de importación
+from personas.models import Empresa, Empleado, Usuario, CuentaBancaria, EmpleadoEmpresa
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
 
@@ -37,12 +37,7 @@ class CuentaBancariaSerializer(serializers.ModelSerializer):
         model = CuentaBancaria
         fields = ['banco', 'tipo_cuenta', 'numero_cuenta']
 
-from rest_framework import serializers
-from django.contrib.auth import get_user_model
-from personas.models import Empleado
 
-from rest_framework import serializers
-from personas.models import Empleado
 
 class RegistroEmpleadoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -57,3 +52,44 @@ class RegistroEmpleadoSerializer(serializers.ModelSerializer):
         empleado = Empleado.objects.create(usuario=usuario, **validated_data)
 
         return empleado
+
+
+class SolicitarUnirseEmpresaAPIView(APIView):
+    def post(self, request, *args, **kwargs):
+        empleado_id = request.data.get('empleado_id')
+        empresa_id = request.data.get('empresa_id')
+        
+        try:
+            empleado = Empleado.objects.get(id=empleado_id)
+            empresa = Empresa.objects.get(id=empresa_id)
+        except Empleado.DoesNotExist:
+            return Response({"error": "Empleado no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+        except Empresa.DoesNotExist:
+            return Response({"error": "Empresa no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Crear la solicitud de relación empleado-empresa con estado "pendiente"
+        relacion = EmpleadoEmpresa.objects.create(empleado=empleado, empresa=empresa, estado='pendiente')
+        return Response({"mensaje": "Solicitud enviada, pendiente de aprobación"}, status=status.HTTP_201_CREATED)
+
+
+class AprobarSolicitudEmpleadoAPIView(APIView):
+    def post(self, request, *args, **kwargs):
+        solicitud_id = request.data.get('solicitud_id')
+        accion = request.data.get('accion')  # "aprobar" o "rechazar"
+        
+        try:
+            solicitud = EmpleadoEmpresa.objects.get(id=solicitud_id)
+        except EmpleadoEmpresa.DoesNotExist:
+            return Response({"error": "Solicitud no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+        
+        if accion == 'aprobar':
+            solicitud.estado = 'aprobado'
+            solicitud.fecha_inicio = date.today()
+            solicitud.save()
+            return Response({"mensaje": "Solicitud aprobada"}, status=status.HTTP_200_OK)
+        elif accion == 'rechazar':
+            solicitud.estado = 'rechazado'
+            solicitud.save()
+            return Response({"mensaje": "Solicitud rechazada"}, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": "Acción no válida"}, status=status.HTTP_400_BAD_REQUEST)
