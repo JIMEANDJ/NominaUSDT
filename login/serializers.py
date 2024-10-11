@@ -53,43 +53,16 @@ class RegistroEmpleadoSerializer(serializers.ModelSerializer):
 
         return empleado
 
+class SolicitudUnirseEmpresaSerializer(serializers.ModelSerializer):
+    cargo = serializers.CharField(required=True)
 
-class SolicitarUnirseEmpresaAPIView(APIView):
-    def post(self, request, *args, **kwargs):
-        empleado_id = request.data.get('empleado_id')
-        empresa_id = request.data.get('empresa_id')
-        
-        try:
-            empleado = Empleado.objects.get(id=empleado_id)
-            empresa = Empresa.objects.get(id=empresa_id)
-        except Empleado.DoesNotExist:
-            return Response({"error": "Empleado no encontrado"}, status=status.HTTP_404_NOT_FOUND)
-        except Empresa.DoesNotExist:
-            return Response({"error": "Empresa no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+    class Meta:
+        model = EmpleadoEmpresa
+        fields = ['empleado', 'empresa', 'cargo', 'estado']
+        read_only_fields = ['estado']  # Solo será "pendiente" al principio
 
-        # Crear la solicitud de relación empleado-empresa con estado "pendiente"
-        relacion = EmpleadoEmpresa.objects.create(empleado=empleado, empresa=empresa, estado='pendiente')
-        return Response({"mensaje": "Solicitud enviada, pendiente de aprobación"}, status=status.HTTP_201_CREATED)
-
-
-class AprobarSolicitudEmpleadoAPIView(APIView):
-    def post(self, request, *args, **kwargs):
-        solicitud_id = request.data.get('solicitud_id')
-        accion = request.data.get('accion')  # "aprobar" o "rechazar"
-        
-        try:
-            solicitud = EmpleadoEmpresa.objects.get(id=solicitud_id)
-        except EmpleadoEmpresa.DoesNotExist:
-            return Response({"error": "Solicitud no encontrada"}, status=status.HTTP_404_NOT_FOUND)
-        
-        if accion == 'aprobar':
-            solicitud.estado = 'aprobado'
-            solicitud.fecha_inicio = date.today()
-            solicitud.save()
-            return Response({"mensaje": "Solicitud aprobada"}, status=status.HTTP_200_OK)
-        elif accion == 'rechazar':
-            solicitud.estado = 'rechazado'
-            solicitud.save()
-            return Response({"mensaje": "Solicitud rechazada"}, status=status.HTTP_200_OK)
-        else:
-            return Response({"error": "Acción no válida"}, status=status.HTTP_400_BAD_REQUEST)
+    def validate(self, data):
+        # Validar que no exista una solicitud pendiente o aprobada para el mismo empleado y empresa
+        if EmpleadoEmpresa.objects.filter(empleado=data['empleado'], empresa=data['empresa'], estado__in=['pendiente', 'aprobado']).exists():
+            raise serializers.ValidationError("Ya existe una solicitud pendiente o aprobada para esta empresa.")
+        return data

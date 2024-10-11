@@ -1,8 +1,12 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth import get_user_model 
+from datetime import date
+
+
 
 class Usuario(AbstractUser):
+    email = models.EmailField(unique=True)  # Hacer que el email sea único
     es_empresa = models.BooleanField(default=False)
     groups = models.ManyToManyField(
         'auth.Group',
@@ -24,9 +28,8 @@ class Usuario(AbstractUser):
     def __str__(self):
         return self.username
 
-
 class Empresa(models.Model):
-    nombre = models.CharField(max_length=255, default='')
+    nombre = models.CharField(max_length=255, default='', unique=True)
     direccion = models.CharField(max_length=255, default='')
     telefono = models.CharField(max_length=20, default='')
     usuarios = models.ManyToManyField(Usuario, through='EmpleadoEmpresa', related_name='empresas')
@@ -67,11 +70,13 @@ class EmpleadoEmpresa(models.Model):
     empleado = models.ForeignKey(Empleado, on_delete=models.CASCADE, related_name='empleado_empresa')
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='empresa_empleado')
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='usuario_empresa', default=1)
-    fecha_inicio = models.DateField() 
-    fecha_fin = models.DateField(null=True, blank=True)
+    cargo = models.CharField(max_length=100, default='Empleado')  # Nuevo campo cargo
+    fecha_inicio = models.DateField(null=True, blank=True)  # Se llenará automáticamente cuando se apruebe
+    estado = models.CharField(max_length=10, default='pendiente')  # Estado de la solicitud
 
     def __str__(self):
         return f"{self.empleado} - {self.empresa}"
+
 
 class RecargaUSDT(models.Model):
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)

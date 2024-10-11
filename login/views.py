@@ -13,6 +13,13 @@ from .serializers import (
 )
 from .permissions import AllowPartialAccess  # Asegúrate de que este permiso esté definido en tu proyecto
 
+from django.core.mail import send_mail
+from django.conf import settings
+
+from personas.models import EmpleadoEmpresa
+
+
+
 
 # Vista para creación de usuarios (con correo, nombre completo y contraseña)
 class UsuarioCreateAPIView(generics.CreateAPIView):
@@ -62,3 +69,87 @@ class RegistroEmpleadoAPIView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class BuscarEmpresaAPIView(generics.ListAPIView):
+    serializer_class = EmpresaSerializer
+
+    def get_queryset(self):
+        nombre_empresa = self.request.query_params.get('nombre', None)
+        if nombre_empresa:
+            return Empresa.objects.filter(nombre__icontains=nombre_empresa)
+        return Empresa.objects.all()
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        if not queryset.exists():
+            return Response({"mensaje": "No se encontraron empresas"}, status=status.HTTP_404_NOT_FOUND)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+
+class SolicitarUnirseEmpresaPorNombreAPIView(APIView):
+    def post(self, request, *args, **kwargs):
+        empleado_nombre = request.data.get('empleado_nombre')
+        empresa_nombre = request.data.get('empresa_nombre')
+        cargo = request.data.get('cargo')  # Se añade el campo cargo
+        
+        try:
+            empleado = Empleado.objects.get(usuario__username=empleado_nombre)
+            empresa = Empresa.objects.get(nombre=empresa_nombre)
+        except Empleado.DoesNotExist:
+            return Response({"error": "Empleado no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+        except Empresa.DoesNotExist:
+            return Response({"error": "Empresa no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Crear la solicitud de relación empleado-empresa con estado "pendiente" y cargo
+        relacion = EmpleadoEmpresa.objects.create(empleado=empleado, empresa=empresa, estado='pendiente', cargo=cargo)
+        return Response({"mensaje": "Solicitud enviada, pendiente de aprobación"}, status=status.HTTP_201_CREATED)
+
+class AprobarSolicitudEmpleadoAPIView(APIView):
+    def post(self, request, *args, **kwargs):
+        solicitud_id = request.data.get('solicitud_id')
+        accion = request.data.get('accion')  # "aprobar" o "rechazar"
+        
+        try:
+            solicitud = EmpleadoEmpresa.objects.get(id=solicitud_id)
+        except EmpleadoEmpresa.DoesNotExist:
+            return Response({"error": "Solicitud no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+        
+        if accion == 'aprobar':
+            solicitud.estado = 'aprobado'
+            solicitud.fecha_inicio = date.today()  # Asigna la fecha actual como fecha de inicio
+            solicitud.save()
+            return Response({"mensaje": "Solicitud aprobada"}, status=status.HTTP_200_OK)
+        elif accion == 'rechazar':
+            solicitud.estado = 'rechazado'
+            solicitud.save()
+            return Response({"mensaje": "Solicitud rechazada"}, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": "Acción no válida"}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+class AprobarSolicitudEmpleadoAPIView(APIView):
+    def post(self, request, *args, **kwargs):
+        serializer = AprobarSolicitudEmpleadoSerializer(data=request.data)
+        if serializer.is_valid():
+            solicitud_id = serializer.validated_data['solicitud_id']
+            accion = serializer.validated_data['accion']
+            
+            try:
+                solicitud = EmpleadoEmpresa.objects.get(id=solicitud_id)
+            except EmpleadoEmpresa.DoesNotExist:
+                return Response({"error": "Solicitud no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+            
+            if accion == 'aprobar':
+                solicitud.estado = 'aprobado'
+                solicitud.fecha_inicio = date.today()  # Asigna la fecha actual como fecha de inicio
+                solicitud.save()
+                return Response({"mensaje": "Solicitud aprobada"}, status=status.HTTP_200_OK)
+            elif accion == 'rechazar':
+                solicitud.estado = 'rechazado'
+                solicitud.save()
+                return Response({"mensaje": "Solicitud rechazada"}, status=status.HTTP_200_OK)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
