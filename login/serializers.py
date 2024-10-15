@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from personas.models import Empresa, Empleado, Usuario, CuentaBancaria, EmpleadoEmpresa
+from personas.models import Empresa, Empleado, Usuario, CuentaBancaria, EmpleadoEmpresa, Notificacion
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
 
@@ -24,8 +24,6 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['correo'] = user.email
         return token
 
-from rest_framework import serializers
-from personas.models import Empresa
 
 class EmpresaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -58,11 +56,57 @@ class SolicitudUnirseEmpresaSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = EmpleadoEmpresa
-        fields = ['empleado', 'empresa', 'cargo', 'estado']
-        read_only_fields = ['estado']  # Solo será "pendiente" al principio
+        fields = ['id', 'empleado', 'empresa', 'cargo', 'estado']  # El campo 'id' será incluido automáticamente
+        read_only_fields = ['id', 'estado']  # El campo 'id' es de solo lectura porque es auto-generado
 
     def validate(self, data):
         # Validar que no exista una solicitud pendiente o aprobada para el mismo empleado y empresa
         if EmpleadoEmpresa.objects.filter(empleado=data['empleado'], empresa=data['empresa'], estado__in=['pendiente', 'aprobado']).exists():
             raise serializers.ValidationError("Ya existe una solicitud pendiente o aprobada para esta empresa.")
         return data
+
+
+class AprobarSolicitudEmpleadoSerializer(serializers.Serializer):
+    solicitud_id = serializers.IntegerField()
+    accion = serializers.ChoiceField(choices=[('aprobar', 'Aprobar'), ('rechazar', 'Rechazar')])
+
+    class Meta:
+        model = EmpleadoEmpresa
+        fields = ['solicitud_id', 'accion']
+
+    def update(self, instance, validated_data):
+        # Obtener la acción (aprobar o rechazar)
+        accion = validated_data.get('accion')
+
+        if accion == 'aprobar':
+            instance.estado = 'aprobado'
+            instance.fecha_inicio = date.today()  # Asigna la fecha actual como fecha de inicio
+        elif accion == 'rechazar':
+            instance.estado = 'rechazado'
+
+        instance.save()
+        return instance
+
+    def to_representation(self, instance):
+        # Sobrescribir este método para incluir el ID de la solicitud en la respuesta
+        representation = super().to_representation(instance)
+        representation['solicitud_id'] = instance.id  # Añadir el ID de la solicitud
+        return representation
+
+
+
+
+class NotificacionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notificacion
+        fields = ['id', 'mensaje', 'visto', 'fecha_creacion']
+        
+        
+class EliminarRelacionEmpleadoSerializer(serializers.Serializer):
+    mensaje = serializers.CharField()
+    
+class EmpleadoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Empleado
+        fields = ['id', 'nombre', 'apellido', 'email']  # Campos que quieras incluir
+

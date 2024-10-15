@@ -32,6 +32,7 @@ class Empresa(models.Model):
     nombre = models.CharField(max_length=255, default='', unique=True)
     direccion = models.CharField(max_length=255, default='')
     telefono = models.CharField(max_length=20, default='')
+    correo = models.EmailField(unique=True, default='') 
     usuarios = models.ManyToManyField(Usuario, through='EmpleadoEmpresa', related_name='empresas')
     creador = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='empresas_creadas', null=True, blank=True)
 
@@ -76,6 +77,15 @@ class EmpleadoEmpresa(models.Model):
 
     def __str__(self):
         return f"{self.empleado} - {self.empresa}"
+    
+class Notificacion(models.Model):
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
+    mensaje = models.TextField()
+    visto = models.BooleanField(default=False)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Notificación para {self.usuario.username}"
 
 
 class RecargaUSDT(models.Model):
