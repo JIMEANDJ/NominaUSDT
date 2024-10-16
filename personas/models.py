@@ -32,12 +32,26 @@ class Empresa(models.Model):
     nombre = models.CharField(max_length=255, default='', unique=True)
     direccion = models.CharField(max_length=255, default='')
     telefono = models.CharField(max_length=20, default='')
-    correo = models.EmailField(unique=True, default='') 
+    correo = models.EmailField(unique=True, default='')
     usuarios = models.ManyToManyField(Usuario, through='EmpleadoEmpresa', related_name='empresas')
     creador = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='empresas_creadas', null=True, blank=True)
+    saldo_total = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)  # Campo de saldo total
 
     def __str__(self):
         return self.nombre
+
+    def agregar_saldo(self, monto):
+        """Método para agregar saldo a la empresa"""
+        self.saldo_total += monto
+        self.save()
+
+    def descontar_saldo(self, monto):
+        """Método para descontar saldo de la empresa"""
+        if self.saldo_total >= monto:
+            self.saldo_total -= monto
+            self.save()
+        else:
+            raise ValueError("Saldo insuficiente")
 
 class Empleado(models.Model):
     usuario = models.OneToOneField(Usuario, on_delete=models.CASCADE, related_name='empleado')
@@ -79,32 +93,58 @@ class EmpleadoEmpresa(models.Model):
         return f"{self.empleado} - {self.empresa}"
     
 class Notificacion(models.Model):
-    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='notificaciones')
     mensaje = models.TextField()
     visto = models.BooleanField(default=False)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Notificación para {self.usuario.username}"
-
+        return f"Notificación para {self.usuario.username}: {self.mensaje[:20]}"
 
 class RecargaUSDT(models.Model):
-    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, default='', related_name='recargas_usdt')
     cantidad = models.DecimalField(max_digits=10, decimal_places=2)
     fecha = models.DateTimeField(auto_now_add=True)
+    solana_tx_id = models.CharField(max_length=255, unique=True, default='')  # ID de transacción en Solana
+    estado = models.CharField(
+        max_length=20,
+        choices=[('pendiente', 'Pendiente'), ('aprobado', 'Aprobado'), ('rechazado', 'Rechazado')],
+        default='pendiente'
+    )
 
     def __str__(self):
-        return f"{self.usuario} - {self.cantidad} USDT"
+        return f"{self.empresa.nombre} - {self.cantidad} USDT ({self.estado})"
+
+    def aprobar_recarga(self):
+        """Aprueba la recarga y actualiza el saldo de la empresa."""
+        if self.estado != 'pendiente':
+            raise ValueError("La recarga ya ha sido procesada.")
+        self.estado = 'aprobado'
+        self.empresa.recargar_saldo(self.cantidad)
+        self.save()
+
+    def rechazar_recarga(self):
+        """Rechaza la recarga."""
+        if self.estado != 'pendiente':
+            raise ValueError("La recarga ya ha sido procesada.")
+        self.estado = 'rechazado'
+        self.save()
 
 class OrdenDePago(models.Model):
-    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE)
-    empleado = models.ForeignKey(Empleado, on_delete=models.CASCADE)
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='ordenes_pago')
+    empleado = models.ForeignKey(Empleado, on_delete=models.CASCADE, related_name='ordenes_pago')
     cantidad_usdt = models.DecimalField(max_digits=10, decimal_places=2)
     cantidad_cop = models.DecimalField(max_digits=10, decimal_places=2)
     fecha = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"Orden de pago para {self.empleado} de {self.cantidad_usdt} USDT"
+
+    def save(self, *args, **kwargs):
+        # Antes de guardar, descontar el saldo total de la empresa
+        self.empresa.descontar_saldo(self.cantidad_usdt)
+        super().save(*args, **kwargs)
+
 
 class ComprobanteDePago(models.Model):
     orden_de_pago = models.OneToOneField(OrdenDePago, on_delete=models.CASCADE)

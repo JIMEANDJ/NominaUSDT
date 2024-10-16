@@ -106,7 +106,13 @@ class EliminarRelacionEmpleadoSerializer(serializers.Serializer):
     mensaje = serializers.CharField()
     
 class EmpleadoSerializer(serializers.ModelSerializer):
+    # Accedemos a los campos del modelo Usuario relacionado
+    id = serializers.IntegerField(source='usuario.id', read_only=True)
+    nombre = serializers.CharField(source='usuario.first_name', read_only=True)
+    apellido = serializers.CharField(source='usuario.last_name', read_only=True)
+    email = serializers.EmailField(source='usuario.email', read_only=True)
+
     class Meta:
         model = Empleado
-        fields = ['id', 'nombre', 'apellido', 'email']  # Campos que quieras incluir
+        fields = ['id', 'nombre', 'apellido', 'email'] 
 

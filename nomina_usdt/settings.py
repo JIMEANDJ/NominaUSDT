@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'drf_yasg', # usado para probar api
     'personas', # app creada para el proyecto
     'login', # app creada para jwt login
+    'monedero_usdt', #creada para gestionar recargas 
 ]
 
 MIDDLEWARE = [

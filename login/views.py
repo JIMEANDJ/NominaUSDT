@@ -160,30 +160,31 @@ class NotificacionListAPIView(APIView):
 
 
 class EliminarRelacionEmpleadoAPIView(APIView):
-    def delete(self, request, empleado_id, empresa_id):
+    def delete(self, request, empresa_nombre, empleado_nombre):
         try:
-            relacion = EmpleadoEmpresa.objects.get(empleado__id=empleado_id, empresa__id=empresa_id)
+            empresa = Empresa.objects.get(nombre=empresa_nombre)
+            empleado = Empleado.objects.get(usuario__username=empleado_nombre)
+            relacion = EmpleoEmpresa.objects.get(empleado=empleado, empresa=empresa)
             relacion.delete()
             return Response({"mensaje": "Relación eliminada correctamente"}, status=status.HTTP_200_OK)
-        except EmpleadoEmpresa.DoesNotExist:
+        except Empresa.DoesNotExist:
+            return Response({"error": "Empresa no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+        except Empleado.DoesNotExist:
+            return Response({"error": "Empleado no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+        except EmpleoEmpresa.DoesNotExist:
             return Response({"error": "Relación no encontrada"}, status=status.HTTP_404_NOT_FOUND)
 
 
-
-
 class ListarEmpleadosDeEmpresaAPIView(APIView):
-    def get(self, request, empresa_id):
+    def get(self, request, empresa_nombre):
         try:
-            empresa = Empresa.objects.get(id=empresa_id)
+            empresa = Empresa.objects.get(nombre=empresa_nombre)
+            empleados = Empleado.objects.filter(empleado_empresa__empresa=empresa)
+
+            serializer = EmpleadoSerializer(empleados, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
         except Empresa.DoesNotExist:
             return Response({"error": "Empresa no encontrada"}, status=status.HTTP_404_NOT_FOUND)
-        
-        # Obtener la lista de empleados relacionados con la empresa
-        empleados = Empleado.objects.filter(empleadoempresa__empresa=empresa)
-        
-        # Serializar los datos de los empleados
-        serializer = EmpleadoSerializer(empleados, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 
