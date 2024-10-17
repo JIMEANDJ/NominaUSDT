@@ -170,3 +170,7 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'EMAIL_HOST_USER'
 EMAIL_HOST_PASSWORD = 'EMAIL_HOST_PASSWORD'
 DEFAULT_FROM_EMAIL = 'Nominas USDT Notificacion <pybackendsolutions@gmail.com>'''
+
+
+SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com"
+SOLANA_WALLET_ADDRESS = '2JHYhdC2oW9Lk7Eabsmy1cNEBzPLBkdRngiP4M4X8YS2'

@@ -155,7 +155,7 @@ class NotificacionListAPIView(APIView):
     def get(self, request, *args, **kwargs):
         notificaciones = Notificacion.objects.filter(usuario=request.user).order_by('-fecha_creacion')
         serializer = NotificacionSerializer(notificaciones, many=True)
-        return Response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 
