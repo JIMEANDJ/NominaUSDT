@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth import get_user_model 
 from datetime import date
-
+import requests
 
 
 class Usuario(AbstractUser):
@@ -68,18 +68,18 @@ class Empleado(models.Model):
     def __str__(self):
         return f"{self.usuario.first_name} {self.usuario.last_name}"
 
+
 class CuentaBancaria(models.Model):
     empleado = models.ForeignKey(Empleado, on_delete=models.CASCADE, related_name='cuentas_bancarias')
     banco = models.CharField(max_length=100)
-    TIPO_CUENTA_CHOICES = [
-        ('corriente', 'Corriente'),
-        ('ahorros', 'Ahorros'),
-    ]
-    tipo_cuenta = models.CharField(max_length=10, choices=TIPO_CUENTA_CHOICES)
+    tipo_cuenta = models.CharField(max_length=10, choices=[('corriente', 'Corriente'), ('ahorros', 'Ahorros')])
     numero_cuenta = models.CharField(max_length=50)
+    documento_cuenta = models.CharField(max_length=50, choices=Empleado.TIPO_DOCUMENTO_CHOICES, default='')
+    fecha_ultima_modificacion = models.DateTimeField(auto_now=True)  # Registra la fecha y hora de la última modificación
 
     def __str__(self):
         return f"{self.banco} - {self.tipo_cuenta} - {self.numero_cuenta}"
+
 
 class EmpleadoEmpresa(models.Model):
     empleado = models.ForeignKey(Empleado, on_delete=models.CASCADE, related_name='empleado_empresa')
@@ -101,34 +101,56 @@ class Notificacion(models.Model):
     def __str__(self):
         return f"Notificación para {self.usuario.username}: {self.mensaje[:20]}"
 
+from django.contrib.auth import get_user_model
+
 class RecargaUSDT(models.Model):
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, default='', related_name='recargas_usdt')
     cantidad = models.DecimalField(max_digits=10, decimal_places=2)
     fecha = models.DateTimeField(auto_now_add=True)
-    solana_tx_id = models.CharField(max_length=255, unique=True, default='')  # ID de transacción en Solana
+    solana_tx_id = models.CharField(max_length=255, unique=True, default='')
     estado = models.CharField(
         max_length=20,
         choices=[('pendiente', 'Pendiente'), ('aprobado', 'Aprobado'), ('rechazado', 'Rechazado')],
         default='pendiente'
     )
+    admin_validador = models.ForeignKey(get_user_model(), on_delete=models.SET_NULL, null=True, blank=True, related_name='recargas_validadas')
+    fecha_validacion = models.DateTimeField(null=True, blank=True)  # Fecha de validación
 
     def __str__(self):
         return f"{self.empresa.nombre} - {self.cantidad} USDT ({self.estado})"
 
-    def aprobar_recarga(self):
-        """Aprueba la recarga y actualiza el saldo de la empresa."""
+    def aprobar_recarga(self, admin):
+        """Aprueba la recarga, asigna el validador y actualiza el saldo de la empresa."""
         if self.estado != 'pendiente':
             raise ValueError("La recarga ya ha sido procesada.")
+        
         self.estado = 'aprobado'
-        self.empresa.recargar_saldo(self.cantidad)
+        self.admin_validador = admin
+        self.fecha_validacion = timezone.now()  # Registrar la fecha de validación
+        self.empresa.agregar_saldo(self.cantidad)
         self.save()
 
-    def rechazar_recarga(self):
-        """Rechaza la recarga."""
+    def rechazar_recarga(self, admin):
+        """Rechaza la recarga y asigna el validador."""
         if self.estado != 'pendiente':
             raise ValueError("La recarga ya ha sido procesada.")
+        
         self.estado = 'rechazado'
+        self.admin_validador = admin
+        self.fecha_validacion = timezone.now()  # Registrar la fecha de validación
         self.save()
+
+
+
+
+class ComprobanteDePago(models.Model):
+    orden_de_pago = models.OneToOneField('OrdenDePago', on_delete=models.CASCADE, related_name='comprobante')
+    archivo = models.FileField(upload_to='comprobantes/')
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Comprobante de {self.orden_de_pago}"
+
 
 class OrdenDePago(models.Model):
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='ordenes_pago')
@@ -137,19 +159,20 @@ class OrdenDePago(models.Model):
     cantidad_cop = models.DecimalField(max_digits=10, decimal_places=2)
     fecha = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return f"Orden de pago para {self.empleado} de {self.cantidad_usdt} USDT"
+    def calcular_cop(self):
+        """Convierte USDT a COP usando la tasa de Binance - 80 COP."""
+        binance_rate = self.obtener_tasa_binance()
+        return self.cantidad_usdt * (binance_rate - 80)
+
+    @staticmethod
+    def obtener_tasa_binance():
+        """Obtiene la tasa de USDT a COP desde Binance."""
+        url = 'https://api.binance.com/api/v3/ticker/price?symbol=USDTCOP'
+        response = requests.get(url)
+        data = response.json()
+        return float(data['price'])
 
     def save(self, *args, **kwargs):
-        # Antes de guardar, descontar el saldo total de la empresa
-        self.empresa.descontar_saldo(self.cantidad_usdt)
+        self.cantidad_cop = self.calcular_cop()  # Calcula COP al guardar
+        self.empresa.descontar_saldo(self.cantidad_usdt)  # Descontar saldo de la empresa
         super().save(*args, **kwargs)
-
-
-class ComprobanteDePago(models.Model):
-    orden_de_pago = models.OneToOneField(OrdenDePago, on_delete=models.CASCADE)
-    archivo = models.FileField(upload_to='comprobantes/')
-    fecha = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Comprobante de {self.orden_de_pago}"
