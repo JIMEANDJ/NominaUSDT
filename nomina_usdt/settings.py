@@ -159,7 +159,7 @@ SIMPLE_JWT = {
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
     'TOKEN_TYPE_CLAIM': 'token_type',
 }
-
+9
 
 '''import os
 # Configuración de envío de correos electrónicos    
@@ -172,7 +172,23 @@ EMAIL_HOST_PASSWORD = 'EMAIL_HOST_PASSWORD'
 DEFAULT_FROM_EMAIL = 'Nominas USDT Notificacion <pybackendsolutions@gmail.com>'''
 
 
+# URLs de Solana y Tron
 SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com"
+TRON_RPC_URL = "https://api.trongrid.io"  # Ejemplo de URL para Tron
+
+# Direcciones de wallet
 SOLANA_WALLET_ADDRESS = '2JHYhdC2oW9Lk7Eabsmy1cNEBzPLBkdRngiP4M4X8YS2'
+TRON_WALLET_ADDRESS = 'TU_DIRECCION_DE_WALLET_TRON'
+
 # Tipo de red
-NETWORK_TYPE = 'solana'  # Cambia según la red utilizada, por ejemplo, 'tron' o 'bep20'
+NETWORK_TYPE = 'solana'  # Cambia a 'tron' según sea necesario
+
+
+# Celery Configuration
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+
+# Otras opciones de Celery que podrías necesitar
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
